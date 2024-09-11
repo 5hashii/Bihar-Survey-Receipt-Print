@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Image and Add Reference Number</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.8/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> <!-- jsPDF Library -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #2196F3;
+            text-align: center;
+            margin-top: 0;
+        }
+        .output-container {
+            position: relative;
+        }
+        #output {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            min-height: 100px;
+            background-color: #ffffff;  
+            display: flex;
+            flex-direction: column;
+            align-items: left;
+        }
+        .open-new-window, .download-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .open-new-window {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 18px;
+        }
+        .hidden {
+            display: none;
+        }
+        img {
+            display: block;
+            max-width: 100%;
+            max-height: 300px; /* Set a max height for the preview */
+            width: auto;
+            height: auto;
+            margin-top: 10px;
+        }
+        #ref-number {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+        }
+        #image-upload {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+
+        /* Styling the  number */
+        .ref-number {
+            font-size: 24px; /* Increase font size */
+            font-weight: bold;
+            color: #2196F3;
+            margin-top: 10px;
+        }
+        .backlink {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #888;
+            text-decoration: none;
+        }
+        .backlink:hover {
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Bihar Survey Receipt Print</h1>
+
+        <!-- Image Upload Section -->
+        <input type="file" id="image-upload" accept="image/*" />
+
+        <!-- Image Preview Section -->
+        <div id="image-preview" class="hidden">
+            <img id="preview-img" alt="Image Preview"/>
+            <input type="text" id="ref-number" placeholder="Enter Number" class="hidden" oninput="addReference()"/>
+        </div>
+
+        <div class="output-container">
+            <div id="output">Output</div>
+            <button class="open-new-window" onclick="openInNewWindow()">&#x2197;</button>
+        </div>
+        <!-- Download Button -->
+        <button class="download-btn hidden" onclick="downloadPDF()">Download as PDF</button>
+    </div>
+
+    <canvas id="canvas" class="hidden"></canvas>
+    <a href="https://onlineprocess.co.in" class="backlink" target="_blank" rel="noopener">Powered by OnlineProcess.co.in</a>
+
+
+    <script>
+        let uploadedImage = null;
+
+        // Handle image upload and display preview
+        document.getElementById('image-upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImage = e.target.result;
+                    document.getElementById('image-preview').classList.remove('hidden');
+                    const imgElement = document.getElementById('preview-img');
+                    imgElement.src = e.target.result;
+                    document.getElementById('ref-number').classList.remove('hidden');
+                    document.querySelector('.download-btn').classList.remove('hidden');
+
+                    // Adjust image size in output section
+                    addReference();
+                }
+                reader.readAsDataURL(file);
+            } else {
+                alert('Please upload a valid image file.');
+            }
+        });
+
+        function addReference() {
+            const refNumber = document.getElementById('ref-number').value;
+            const output = document.getElementById('output');
+            const imgElement = document.getElementById('preview-img');
+
+            output.innerHTML = `<img src="${imgElement.src}" alt="Image" style="max-width: 100%; max-height: 300px;" /><h2 class="ref-number">${refNumber}</h2>`;
+        }
+
+        function openInNewWindow() {
+            const outputContent = document.getElementById('output').innerHTML;
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(outputContent);
+            newWindow.document.body.style.backgroundColor = '#ffffff'; 
+            newWindow.document.close();
+        }
+
+        function downloadPDF() {
+            const refNumber = document.getElementById('ref-number').value;
+            const imgElement = document.getElementById('preview-img');
+        
+            const img = new Image();
+            img.src = uploadedImage;
+        
+            img.onload = function() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+        
+                const maxWidth = 150;  // Max width for PDF (A4 paper width in mm)
+                const maxHeight = 260; // Reduced max height to accommodate  number above
+
+                const aspectRatio = img.width / img.height;
+                let newWidth = img.width;
+                let newHeight = img.height;
+        
+                // Scale the image to fit in PDF
+                if (newWidth > maxWidth) {
+                    newWidth = maxWidth;
+                    newHeight = newWidth / aspectRatio;
+                }
+                if (newHeight > maxHeight) {
+                    newHeight = maxHeight;
+                    newWidth = newHeight * aspectRatio;
+                }
+        
+                // Add  number above the image
+                doc.setFontSize(20);
+                doc.setTextColor('#2196F3');
+                doc.text(`${refNumber}`, 105, 30, null, null, 'center');
+
+                // Add the image to the PDF below the  number
+                doc.addImage(imgElement.src, 'JPEG', 25, 40, newWidth, newHeight);
+        
+                // Add watermark at the bottom of the page
+                doc.setFontSize(9);
+                doc.setTextColor(150, 150, 150);
+                const watermarkText = 'OnlineProcess.co.in';
+                const pageHeight = doc.internal.pageSize.height;
+                const watermarkX = doc.internal.pageSize.width / 10;
+                const watermarkY = pageHeight - 10;
+        
+                doc.text(watermarkText, watermarkX, watermarkY, null, null, 'left');
+        
+                // Save the PDF
+                doc.save('image_with_reference.pdf');
+            };
+        }
+        // Modified function to insert dofollow backlink
+        function insertBacklink() {
+            const backlink = document.createElement('a');
+            backlink.href = 'https://onlineprocess.co.in';
+            backlink.className = 'backlink';
+            backlink.target = '_blank';
+            backlink.textContent = 'Powered by OnlineProcess.co.in';
+            document.body.appendChild(backlink);
+        }
+
+        // Call the function when the page loads
+        window.onload = insertBacklink;
+    </script>
+
+</body>
+</html>
